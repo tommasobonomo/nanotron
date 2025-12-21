@@ -79,9 +79,7 @@ class RotaryEmbedding(nn.Module):
         assert self.freqs_cis.dtype == torch.float
         freqs = 1.0 / (
             self.theta ** (torch.arange(0, self.dim, 2, dtype=torch.float, device="cpu")[: (self.dim // 2)] / self.dim)
-        ).to(
-            "cuda"
-        )  # should be computed on CPU, otherwise different results with Transformers.
+        ).to("cuda")  # should be computed on CPU, otherwise different results with Transformers.
         t = torch.arange(self.end, device="cuda")
         freqs = torch.outer(t, freqs).float()
         complex_freqs = torch.polar(torch.ones_like(freqs), freqs)
@@ -105,9 +103,7 @@ class RotaryEmbedding(nn.Module):
             self.init_rotary_embeddings()
         dtype = x.dtype
         assert inner_dim % 2 == 0
-        x = x.view(
-            batch_size, seq_length, num_heads, inner_dim // 2, 2
-        )  # [batch_size, q_length, num_heads, inner_dim]
+        x = x.view(batch_size, seq_length, num_heads, inner_dim // 2, 2)  # [batch_size, q_length, num_heads, inner_dim]
         if x.dtype == torch.bfloat16:
             x = x.float()
         complex_x = torch.view_as_complex(x)  # [batch_size, q_length, num_heads, inner_dim // 2]
@@ -136,9 +132,7 @@ class LlamaRotaryEmbedding(nn.Module):
         inv_freq = 1.0 / (
             self.theta ** (torch.arange(0, self.dim, 2, dtype=torch.float, device="cpu") / self.dim)
         )  # important to compute on CPU
-        self.register_buffer(
-            "inv_freq", torch.empty(self.dim // 2, dtype=torch.float, device="cuda"), persistent=False
-        )
+        self.register_buffer("inv_freq", torch.empty(self.dim // 2, dtype=torch.float, device="cuda"), persistent=False)
         self.inv_freq = self.inv_freq.to(
             torch.float
         )  # make it float32 before copy to avoid precision loss during copy_
@@ -254,9 +248,9 @@ class CoreAttention(nn.Module):
     def __init__(self, config: LlamaConfig, parallel_config: Optional[ParallelismArgs], layer_idx: int):
         super().__init__()
         # TODO @thomasw21: GPT has a weird `d_kv` config which I'm guessing is essentically a `d_qkv`
-        assert (
-            config.hidden_size % config.num_attention_heads == 0
-        ), f"Hidden size {config.hidden_size} must be divisible by number of attention heads {config.num_attention_heads}."
+        assert config.hidden_size % config.num_attention_heads == 0, (
+            f"Hidden size {config.hidden_size} must be divisible by number of attention heads {config.num_attention_heads}."
+        )
         self.d_qk = config.hidden_size // config.num_attention_heads
         self.d_v = config.hidden_size // config.num_attention_heads
         self.is_using_mup = config.is_using_mup
@@ -344,13 +338,13 @@ class CausalSelfAttention(nn.Module, AttachableStore):
 
         super().__init__()
         # Tensor parallel considerations: We split tensors along head dimension
-        assert (
-            config.num_attention_heads % tp_pg.size() == 0
-        ), f"Number of attention heads ({config.num_attention_heads}) must be divisible by TP size ({tp_pg.size()})."
+        assert config.num_attention_heads % tp_pg.size() == 0, (
+            f"Number of attention heads ({config.num_attention_heads}) must be divisible by TP size ({tp_pg.size()})."
+        )
         try:
-            assert (
-                config.num_key_value_heads % tp_pg.size() == 0
-            ), f"Number of key/value heads ({config.num_key_value_heads}) must be divisible by TP size ({tp_pg.size()})."
+            assert config.num_key_value_heads % tp_pg.size() == 0, (
+                f"Number of key/value heads ({config.num_key_value_heads}) must be divisible by TP size ({tp_pg.size()})."
+            )
         except AttributeError:
             log_rank(
                 "WARNING: num_key_value_heads not defined, assuming it is equal to num_attention_heads",
@@ -360,9 +354,9 @@ class CausalSelfAttention(nn.Module, AttachableStore):
             )
             # If num_key_value_heads is not defined, we assume that it is equal to num_attention_heads
             config.num_key_value_heads = config.num_attention_heads
-        assert (
-            config.num_attention_heads % config.num_key_value_heads == 0
-        ), f"Number of attention heads ({config.num_attention_heads}) must be divisible by number of key/value heads ({config.num_key_value_heads})."
+        assert config.num_attention_heads % config.num_key_value_heads == 0, (
+            f"Number of attention heads ({config.num_attention_heads}) must be divisible by number of key/value heads ({config.num_key_value_heads})."
+        )
         self.n_local_q_heads = config.num_attention_heads // tp_pg.size()
         self.n_local_kv_heads = config.num_key_value_heads // tp_pg.size()
         self.n_repeats = config.num_attention_heads // config.num_key_value_heads
@@ -522,9 +516,13 @@ class CausalSelfAttention(nn.Module, AttachableStore):
                 # TODO @nouamane: support custom masking
                 # assert that [ False, False, False, False,  True,  True,  True,  True,  True,  True] is accepted
                 # but [ False, False, False, False,  True,  True,  False,  False,  True,  True] is not (can't mask in the middle of sequence)
-                assert ~(
-                    sequence_mask[:, :-1] & (~sequence_mask[:, 1:])  # True is never followed by False
-                ).any(), "Can't mask in the middle of sequence, please make sure that pads are at the left of the sequence if existing"
+                assert (
+                    ~(
+                        sequence_mask[:, :-1] & (~sequence_mask[:, 1:])  # True is never followed by False
+                    ).any()
+                ), (
+                    "Can't mask in the middle of sequence, please make sure that pads are at the left of the sequence if existing"
+                )
 
                 # preallocate k_cache, v_cache to self.prefill_kv_len
                 k_cache = torch.zeros(
@@ -548,9 +546,7 @@ class CausalSelfAttention(nn.Module, AttachableStore):
                     query_states,
                     sequence_mask,
                 )
-                (key_unpad, indices_k, cu_seqlens_k, max_seqlen_k) = bert_padding.unpad_input(
-                    key_states, sequence_mask
-                )
+                (key_unpad, indices_k, cu_seqlens_k, max_seqlen_k) = bert_padding.unpad_input(key_states, sequence_mask)
                 (value_unpad, _, _, _) = bert_padding.unpad_input(value_states, sequence_mask)
 
                 # NOTE: this scale is for µTransfer,
@@ -620,12 +616,12 @@ class CausalSelfAttention(nn.Module, AttachableStore):
                         dim=1,
                     )
 
-                assert (
-                    k_cache.shape[1] == self.rotary_embedding.end
-                ), f"Cache size {k_cache.shape[1]} is smaller than rotary embedding end {self.rotary_embedding.end}"
-                assert (
-                    v_cache.shape[1] == self.rotary_embedding.end
-                ), f"Cache size {v_cache.shape[1]} is smaller than rotary embedding end {self.rotary_embedding.end}"
+                assert k_cache.shape[1] == self.rotary_embedding.end, (
+                    f"Cache size {k_cache.shape[1]} is smaller than rotary embedding end {self.rotary_embedding.end}"
+                )
+                assert v_cache.shape[1] == self.rotary_embedding.end, (
+                    f"Cache size {v_cache.shape[1]} is smaller than rotary embedding end {self.rotary_embedding.end}"
+                )
 
                 # [batch_size, seq_length, num_heads, d_qk]
                 query_states = query_states.view(
@@ -770,7 +766,6 @@ class LlamaDecoderLayer(nn.Module):
         hidden_states: Union[torch.Tensor, TensorPointer],
         sequence_mask: Union[torch.Tensor, TensorPointer],
     ) -> Dict[str, Union[torch.Tensor, TensorPointer]]:
-
         if self.recompute_layer and not isinstance(hidden_states, TensorPointer):
             hidden_states, sequence_mask = self._checkpointed_forward(hidden_states, sequence_mask)
         else:
@@ -1136,7 +1131,9 @@ class LlamaForTraining(NanotronModel):
             if param.is_tied
             else name
             for name, param in model.named_parameters()
-        }, f"Somehow the initialized set of parameters don't match:\n - Expected: { {name for name, _ in model.named_parameters()} }\n - Got: {initialized_parameters}"
+        }, (
+            f"Somehow the initialized set of parameters don't match:\n - Expected: { {name for name, _ in model.named_parameters()} }\n - Got: {initialized_parameters}"
+        )
 
     def get_embeddings_lm_head_tied_names(self):
         """Get the names of the tied embeddings and lm_head weights"""

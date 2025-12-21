@@ -18,9 +18,10 @@ logger = logging.get_logger(__name__)
 try:
     import grouped_gemm.ops as ops
 except ImportError:
-    raise RuntimeError(
-        "Grouped GEMM is not available. Please run `pip install --no-build-isolation git+https://github.com/fanshiqing/grouped_gemm@main` (takes less than 5 minutes)"
-    )
+    # raise RuntimeError(
+    #     "Grouped GEMM is not available. Please run `pip install --no-build-isolation git+https://github.com/fanshiqing/grouped_gemm@main` (takes less than 5 minutes)"
+    # )
+    pass
 
 
 class Router(nn.Module):
@@ -186,9 +187,7 @@ class Qwen2MoELayer(nn.Module):
 
         expert_outputs = self.experts(dispatched_inputs, num_tokens_per_expert)
 
-        output = self._combine_expert_outputs(
-            expert_outputs["hidden_states"], inverse_permute_mapping, routing_weights
-        )
+        output = self._combine_expert_outputs(expert_outputs["hidden_states"], inverse_permute_mapping, routing_weights)
 
         # Add shared expert contribution if enabled
         if self.enable_shared_expert:

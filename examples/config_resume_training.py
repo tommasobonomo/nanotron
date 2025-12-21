@@ -1,10 +1,12 @@
-""" Example python script to generate a YAML config file which can be used to run a training with nanotron. Refer to "examples" section in the `/README.md` for more information.
+"""Example python script to generate a YAML config file which can be used to run a training with nanotron. Refer to "examples" section in the `/README.md` for more information.
 
 Usage:
 python examples/config_resume_training.py
 """
+
 import json
 import os
+from pathlib import Path
 
 from nanotron.config import (
     AdamWOptimizerArgs,
@@ -15,11 +17,11 @@ from nanotron.config import (
     GeneralArgs,
     LoggingArgs,
     LRSchedulerArgs,
+    MistralConfig,
     ModelArgs,
     NanosetDatasetsArgs,
     OptimizerArgs,
     ParallelismArgs,
-    Qwen2Config,
     RandomInit,
     TokenizerArgs,
     TokensArgs,
@@ -27,13 +29,17 @@ from nanotron.config import (
 from nanotron.logging import human_format
 
 # Path to the converted SmolLM2-135M checkpoint. See `examples/llama/convert_hf_to_nanotron.py` for more information.
-CHECKPOINT_PATH = "./checkpoints/smollm2-135m-nanotron"
-TOKENIZER_PATH = "HuggingFaceTB/SmolLM2-135M"
+CHECKPOINT_PATH = Path("/leonardo_scratch/fast/FAIR_NLP/minerva/nanotron_models/minerva-7B-base-recipe2-nt")
+TOKENIZER_PATH = Path(
+    "/leonardo_scratch/large/userexternal/tbonomo0/models/sapienzanlp--Minerva-7B-base-recipe2/tokenizer.json"
+)
+SEQUENCE_LENGTH = 131072  # 128k tokens
+# TOKENIZER_PATH = "MinervaV2/Minerva-7B-base-v1.0-continual"
 
 # load from CHECKPOINT_PATH/model_config.json
 model_config_dict = json.load(open(f"{CHECKPOINT_PATH}/model_config.json"))
 model_config_dict.pop("is_llama_config", None)
-model_config = Qwen2Config(**model_config_dict)
+model_config = MistralConfig(**model_config_dict)
 
 # Calculate rough parameter count
 dense_layer_count = model_config.num_hidden_layers
@@ -54,7 +60,7 @@ num_params = human_format(total_params).replace(".", "p")
 
 print(f"Model has {num_params} parameters")
 
-seed = 42
+seed = 204
 
 learning_rate = LRSchedulerArgs(
     learning_rate=3e-4, lr_warmup_steps=2, lr_warmup_style="linear", lr_decay_style="cosine", min_decay_lr=1e-5
@@ -77,14 +83,16 @@ optimizer = OptimizerArgs(
 parallelism = ParallelismArgs(
     dp=2,
     pp=1,
-    tp=1,
-    context_parallel_size=1,
+    tp=2,
+    context_parallel_size=2,
     pp_engine="1f1b",
     tp_mode="REDUCE_SCATTER",
     tp_linear_async_communication=True,
 )
 
-tokens = TokensArgs(sequence_length=256, train_steps=15, micro_batch_size=2, batch_accumulation_per_replica=1)
+tokens = TokensArgs(
+    sequence_length=SEQUENCE_LENGTH, train_steps=15, micro_batch_size=1, batch_accumulation_per_replica=1
+)
 
 data_stages = [
     DatasetStageArgs(
@@ -101,7 +109,10 @@ data_stages = [
             #     text_column_name="text",
             # ),
             dataset=NanosetDatasetsArgs(
-                dataset_folder="/fsx/loubna/tokenized_for_exps/mcf-dataset",  # 1.4T tokens
+                dataset_folder="/leonardo_scratch/large/userexternal/tbonomo0/itagutenberg",  # ~200M tokens
+                tokenizer_name=TOKENIZER_PATH,
+                token_size_in_bytes=2,  # No idea why it's needed but you get it from the metadata of the nanoset,
+                vocab_size=51200,  # Need to set it to model vocab size
             ),
             # TokenizedBytesDatasetFolderArgs(
             #     folder="/fsx/loubna/tokenized_for_exps/fineweb-edu-400B", # 1.4T tokens
@@ -117,10 +128,11 @@ data_stages = [
             # ),
             seed=seed,
         ),
+        sequence_length=SEQUENCE_LENGTH,
     ),
 ]
 
-checkpoints_path = "./checkpoints"
+checkpoints_path = Path("/leonardo_scratch/large/userexternal/tbonomo0/longctx_checkpoints")
 os.makedirs(checkpoints_path, exist_ok=True)
 
 run_name = "resume_training_%date_%jobid"

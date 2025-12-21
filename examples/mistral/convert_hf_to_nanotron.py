@@ -1,7 +1,7 @@
 """
 Converts a HF model to nanotron format
 Command:
-    torchrun --nproc_per_node=1 examples/llama/convert_hf_to_nanotron.py --checkpoint_path=hf_weights --save_path=nanotron_weights
+    torchrun --nproc_per_node=1 examples/mistral/convert_hf_to_nanotron.py --checkpoint_path=hf_weights --save_path=nanotron_weights
 """
 
 import dataclasses
@@ -10,13 +10,12 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 import torch
-from transformers import LlamaConfig as HFLlamaConfig
-from transformers import LlamaForCausalLM
+from transformers import MistralConfig as HFMistralConfig
+from transformers import MistralForCausalLM
 
 import nanotron
-from nanotron.config import LlamaConfig as NanotronLlamaConfig
-from nanotron.config import Qwen2Config as NanotronQwen2Config
-from nanotron.models.llama import LlamaForTraining
+from nanotron.config import MistralConfig as NanotronMistralConfig
+from nanotron.models.mistral import MistralForTraining
 
 from .convert_weights import get_config_mapping, get_weight_mapping, load_nanotron_model
 
@@ -51,7 +50,10 @@ def _handle_attention_block(
 
 
 def convert_hf_to_nt(
-    model_hf: LlamaForCausalLM, model_nt: LlamaForTraining, config: NanotronLlamaConfig, interleave_qkv: bool = False
+    model_hf: MistralForCausalLM,
+    model_nt: MistralForTraining,
+    config: NanotronMistralConfig,
+    interleave_qkv: bool = False,
 ):
     """Converts the weights from the model_hf to model_nt, making modifications
     in-place."""
@@ -92,10 +94,17 @@ def convert_hf_to_nt(
                 param_nt.copy_(param)
 
 
-def get_nanotron_config(config: HFLlamaConfig) -> NanotronQwen2Config:
+def get_nanotron_config(config: HFMistralConfig) -> NanotronMistralConfig:
     """Converts a huggingface configuration to nanotron configuration."""
-    attrs = {key: getattr(config, value) for key, value in get_config_mapping(nt_to_hf=True).items()}
-    return NanotronQwen2Config(**attrs)
+    nt_to_hf = get_config_mapping(nt_to_hf=True)
+
+    # Mistral does not have some of the configuration keys defined in get_config_mapping
+    keys_not_in_mistral = ["attention_bias", "pretraining_tp", "rope_scaling"]
+    for key in keys_not_in_mistral:
+        nt_to_hf.pop(key, None)
+
+    attrs = {key: getattr(config, value) for key, value in nt_to_hf.items()}
+    return NanotronMistralConfig(**attrs)
 
 
 def convert_checkpoint_and_save(checkpoint_path: Path, save_path: Path):
@@ -104,7 +113,7 @@ def convert_checkpoint_and_save(checkpoint_path: Path, save_path: Path):
     and saves the transformed nanotron to `save_path`."""
 
     # Load huggingface.
-    hf_model = LlamaForCausalLM.from_pretrained(checkpoint_path)
+    hf_model = MistralForCausalLM.from_pretrained(checkpoint_path)
 
     # Init nanotron model.
     model_config = get_nanotron_config(hf_model.config)

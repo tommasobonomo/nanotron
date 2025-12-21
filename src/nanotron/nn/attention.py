@@ -4,8 +4,9 @@ from typing import Literal, Optional, Tuple
 import torch
 from packaging import version
 
-from nanotron.nn.ring_attention import ring_flash_attn_varlen_func
 from nanotron.nn.llama3_ring_attention import llama3_flash_attn_varlen_qkvpacked_func
+from nanotron.nn.ring_attention import ring_flash_attn_varlen_func
+
 
 # Replace direct import with a function for lazy loading
 def get_ring_flash_attn_cuda():
@@ -38,6 +39,8 @@ def is_flash_attn_greater_or_equal_2_10():
 
 if is_flash_attn_greater_or_equal_2_10():
     from flash_attn.flash_attn_interface import flash_attn_func
+
+
 # adapted from transformers.integrations.flex_attention.flex_attention_forward
 def flex_attention_forward(
     module: torch.nn.Module,
@@ -69,14 +72,14 @@ def flex_attention_forward(
         document_ids: Optional tensor explicitly marking document boundaries [seq_len]
                      (e.g., [0,0,0,1,1,2,2,2,2,2,2] for seqs of length 3,2,6)
         flex_attention_mask: Optional string specifying a custom mask type
-        
+
     Returns:
         Tuple of (attention_output, attention_weights)
     """
     from nanotron.nn.flex_attention import (
-        create_softcapped_causal_score_mod,
-        create_document_mask_func,
         create_attention_mask,
+        create_document_mask_func,
+        create_softcapped_causal_score_mod,
         get_attention_mod_from_type,
         get_block_mask_from_type,
         validate_attention_args,
@@ -109,7 +112,7 @@ def flex_attention_forward(
         causal_mask = attention_mask
         if causal_mask is not None:
             causal_mask = causal_mask[:, :, :, : key.shape[-2]]
-            
+
         # Create document masking function if needed
         doc_mask_func = create_document_mask_func(query, document_ids, position_ids)
 
