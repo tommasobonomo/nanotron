@@ -18,7 +18,7 @@ data_stages:
       - 1
       pad_samples_to_global_batch_size: false
       return_positions: true
-      shuffle_files: false
+      shuffle_files: true
       skip_in_stream: false
       token_size_in_bytes: 2
       tokenizer_name: /leonardo_scratch/large/userexternal/tbonomo0/models/sapienzanlp--Minerva-7B-base-recipe2
@@ -27,7 +27,7 @@ data_stages:
     num_loading_workers: 1
     seed: 204
   name: Stable Training Stage
-  sequence_length: 131072
+  sequence_length: 65536 # 131072
   start_training_step: 1
 general:
   benchmark_csv_path: null
@@ -52,6 +52,7 @@ model:
   make_vocab_size_divisible_by: 1
   model_config:
     _attn_implementation: llama3_ring_attention
+    ring_attn_heads_k_stride: 1
     attention_bias: false
     bos_token_id: 1
     eos_token_id: 2
@@ -61,7 +62,7 @@ model:
     initializer_range: 0.02
     intermediate_size: 14336
     is_mistral_config: true
-    max_position_embeddings: 4096
+    max_position_embeddings: 65536 # 131072
     num_attention_heads: 32
     num_hidden_layers: 32
     num_key_value_heads: 8
@@ -69,7 +70,7 @@ model:
     pretraining_tp: 1
     rms_norm_eps: 1.0e-05
     rope_interleaved: false
-    rope_theta: 10000.0
+    rope_theta: 1500000.0
     sliding_window_size: null
     tie_word_embeddings: false
     use_cache: false
@@ -95,20 +96,20 @@ optimizer:
   weight_decay_exclude_named_params: []
   zero_stage: 0
 parallelism:
-  context_parallel_size: 4
+  context_parallel_size: 2
   dp: 2
   expert_parallel_size: 1
-  pp: 2
+  pp: 1
   pp_engine: 1f1b
-  recompute_layer: false
-  tp: 1
+  recompute_layer: true
+  tp: 4
   tp_linear_async_communication: true
   tp_mode: REDUCE_SCATTER
   tp_recompute_allgather: true
 profiler: null
 s3_upload: null
 tokenizer:
-  tokenizer_max_length: 131072
+  tokenizer_max_length: 65536 # 131072
   tokenizer_name_or_path: /leonardo_scratch/large/userexternal/tbonomo0/models/sapienzanlp--Minerva-7B-base-recipe2
   tokenizer_revision: null
 tokens:
@@ -116,6 +117,6 @@ tokens:
   limit_test_batches: 0
   limit_val_batches: 0
   micro_batch_size: 1
-  sequence_length: 131072
+  sequence_length: 65536 # 131072
   train_steps: 15
   val_check_interval: -1

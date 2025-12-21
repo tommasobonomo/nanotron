@@ -7,10 +7,13 @@
 #SBATCH --partition=boost_usr_prod
 #SBATCH --qos=boost_qos_dbg
 #SBATCH --nodes=4
-#SBATCH --ntasks-per-node=1
+#SBATCH --ntasks=4
+#SBATCH --ntasks-per-node=4
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:4
 #SBATCH --exclusive
+#SBATCH --exclude=lrdn[2000-3450]
+
 
 module purge
 module load nccl/2.22.3-1--gcc--12.2.0-cuda-12.2-spack0.22
@@ -23,9 +26,10 @@ export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 export MASTER_PORT=6000
 export COUNT_NODE=`scontrol show hostnames "$SLURM_JOB_NODELIST" | wc -l`
 
-export TMPDIR=/tmp
+export TMPDIR=/leonardo_scratch/large/userexternal/tbonomo0/tmp
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 export WANDB_MODE=offline
+export WANDB_DIR=/leonardo_scratch/large/userexternal/tbonomo0/tmp
 
 srun bash -c "torchrun \
     --nproc_per_node 4 \

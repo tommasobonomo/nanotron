@@ -303,6 +303,7 @@ class MistralAttention(nn.Module, AttachableStore):
                 return_attn_probs=self.log_attn_probs,
             )  # Not contiguous, similar to flash_attn
 
+        attn_output, attn_probs, _ = attn_output
         return attn_output.reshape(-1, self.local_num_heads * self.head_dim)  # [b*s, num_heads*head_dim]
 
 
