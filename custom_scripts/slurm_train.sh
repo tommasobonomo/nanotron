@@ -8,7 +8,7 @@
 #SBATCH --qos=boost_qos_dbg
 #SBATCH --nodes=4
 #SBATCH --ntasks=4
-#SBATCH --ntasks-per-node=4
+#SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:4
 #SBATCH --exclusive
@@ -21,20 +21,19 @@ module load python/3.11.7
 
 source /leonardo/home/userexternal/tbonomo0/nanotron/.venv/bin/activate
 
+# Multi-node settings
 export HOSTNAMES=`scontrol show hostnames "$SLURM_JOB_NODELIST"`
 export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 export MASTER_PORT=6000
 export COUNT_NODE=`scontrol show hostnames "$SLURM_JOB_NODELIST" | wc -l`
-
-export TMPDIR=/leonardo_scratch/large/userexternal/tbonomo0/tmp
 export CUDA_DEVICE_MAX_CONNECTIONS=1
-export WANDB_MODE=offline
-export WANDB_DIR=/leonardo_scratch/large/userexternal/tbonomo0/tmp
 
-srun bash -c "torchrun \
-    --nproc_per_node 4 \
-    --nnodes $COUNT_NODE \
-    --rdzv_backend c10d \
-    --rdzv_endpoint $MASTER_ADDR:$MASTER_PORT \
-    --max_restarts 0 \
-    run_train.py --config-file /leonardo/home/userexternal/tbonomo0/nanotron/examples/config_resume_training.yaml"
+srun /leonardo/home/userexternal/tbonomo0/nanotron/custom_scripts/node_train.sh
+
+# srun bash -c "torchrun \
+# --nproc_per_node 4 \
+# --nnodes $COUNT_NODE \
+# --rdzv_backend c10d \
+# --rdzv_endpoint $MASTER_ADDR:$MASTER_PORT \
+# --max_restarts 0 \
+# run_train.py --config-file /leonardo/home/userexternal/tbonomo0/nanotron/examples/config_resume_training.yaml"
