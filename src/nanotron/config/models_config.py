@@ -318,9 +318,6 @@ class MistralConfig:
     rms_norm_eps: float = 1e-05
     rope_theta: float = 10000.0
     rope_interleaved: bool = False
-    rope_seq_len_interpolation_factor: Optional[float] = (
-        None  # if not None, discrete positions will be interpolated by this factor via the trick in https://arxiv.org/abs/2306.15595
-    )
     sliding_window_size: int = 4096
     tie_word_embeddings: bool = False
     use_cache: bool = True

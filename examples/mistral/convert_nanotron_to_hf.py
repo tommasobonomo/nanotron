@@ -10,14 +10,15 @@ from pathlib import Path
 from typing import Literal, Optional, Type
 
 import torch
-from transformers import AutoTokenizer, LlamaForCausalLM
-from transformers import LlamaConfig as HFLlamaConfig
+from transformers import AutoTokenizer, MistralForCausalLM
+from transformers import MistralConfig as HFMistralConfig
 
 from nanotron.config import LlamaConfig as NanotronLlamaConfig
+from nanotron.config import MistralConfig as NanotronMistralConfig
 from nanotron.config import NanotronConfigs
 from nanotron.config import Qwen2Config as NanotronQwen2Config
 from nanotron.models import init_on_device_and_dtype
-from nanotron.models.llama import LlamaForTraining
+from nanotron.models.mistral import MistralForTraining
 
 from .convert_weights import get_config_mapping, get_weight_mapping, load_nanotron_model
 
@@ -71,9 +72,9 @@ def _handle_gate_up_proj(gate_up_proj: torch.Tensor, gate: bool) -> torch.Tensor
 
 
 def convert_nt_to_hf(
-    nanotron_model: LlamaForTraining,
-    hf_model: LlamaForCausalLM,
-    model_config: NanotronLlamaConfig,
+    nanotron_model: MistralForTraining,
+    hf_model: MistralForCausalLM,
+    model_config: NanotronMistralConfig,
     interleave_qkv: bool = False,
 ):
     """Converts the weights from the nanotron_model to hf_model, making modifications
@@ -108,17 +109,17 @@ def convert_nt_to_hf(
                 param_hf.copy_(param)
 
 
-def get_hf_config(config: NanotronLlamaConfig) -> HFLlamaConfig:
+def get_hf_config(config: NanotronMistralConfig) -> HFMistralConfig:
     """Converts a nanotron configuration to huggingface configuration."""
     attrs = {key: getattr(config, value) for key, value in get_config_mapping(nt_to_hf=False).items()}
-    return HFLlamaConfig(**attrs)
+    return HFMistralConfig(**attrs)
 
 
 def convert_checkpoint_and_save(
     checkpoint_path: Path,
     save_path: Path,
     tokenizer_name: Optional[str] = None,
-    config_cls: Type[NanotronConfigs] = NanotronLlamaConfig,
+    config_cls: Type[NanotronConfigs] = NanotronMistralConfig,
 ):
     """Loads the nanotron checkpoint in `checkpoint_path`, creates
     a new huggingface instance, copies the weights from the nanotron checkpoint
@@ -135,7 +136,7 @@ def convert_checkpoint_and_save(
     # Init huggingface model.
     with init_on_device_and_dtype(torch.device("cuda"), torch.bfloat16):
         model_config_hf = get_hf_config(model_config)
-        hf_model = LlamaForCausalLM._from_config(model_config_hf)
+        hf_model = MistralForCausalLM._from_config(model_config_hf)
 
     # Copy weights, initialize tokenizer and save model.
     if tokenizer_name is not None:
@@ -154,7 +155,7 @@ def check_converted_model_generation(save_path: Path):
     input_ids = tokenizer(TEST_PROMPT, return_tensors="pt")["input_ids"].cuda()
     print("Inputs:", tokenizer.batch_decode(input_ids))
 
-    model = LlamaForCausalLM.from_pretrained(save_path).cuda().bfloat16()
+    model = MistralForCausalLM.from_pretrained(save_path).cuda().bfloat16()
     out = model.generate(input_ids, max_new_tokens=100)
     print("Generation (converted): ", tokenizer.batch_decode(out))
 
@@ -167,8 +168,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config_cls",
         type=str,
-        default="LlamaConfig",
-        help="Config class to use for conversion (Either LlamaConfig or Qwen2Config)",
+        default="MistralConfig",
+        help="Config class to use for conversion (Either MistralConfig or LlamaConfig or Qwen2Config)",
     )
     args = parser.parse_args()
 
@@ -176,9 +177,11 @@ if __name__ == "__main__":
         config_cls = NanotronLlamaConfig
     elif args.config_cls == "Qwen2Config":
         config_cls = NanotronQwen2Config
+    elif args.config_cls == "MistralConfig":
+        config_cls = NanotronMistralConfig
     else:
         raise ValueError(
-            f"Invalid config class: {args.config_cls}. Should be one of [NanotronLlamaConfig, NanotronQwen2Config]"
+            f"Invalid config class: {args.config_cls}. Should be one of [LlamaConfig, Qwen2Config, MistralConfig]"
         )
 
     # Convert Nanotron model to HF format.

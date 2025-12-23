@@ -215,7 +215,7 @@ class MistralAttention(nn.Module, AttachableStore):
                 dim=self.head_dim,
                 base=config.rope_theta,
                 interleaved=config.rope_interleaved,
-                seq_len_interpolation_factor=config.rope_seq_len_interpolation_factor,
+                seq_len_interpolation_factor=None,
             )
         else:
             raise NotImplementedError("Not implemented for non-packed qkv")

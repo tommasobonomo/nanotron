@@ -22,4 +22,4 @@ torchrun \
     --rdzv_endpoint $MASTER_ADDR:$MASTER_PORT \
     --max_restarts 0 \
     /leonardo/home/userexternal/tbonomo0/nanotron/run_train.py \
-    --config-file /leonardo/home/userexternal/tbonomo0/nanotron/examples/config_resume_training.yaml
+    --config-file /leonardo/home/userexternal/tbonomo0/nanotron/examples/config_longctx_continual_128k.yaml

@@ -19,40 +19,31 @@ class GradientAccumulator(ABC):
     fp32_grads_allreduce_handle: Optional[torch.futures.Future]
 
     @abstractmethod
-    def __init__(self, named_parameters: Iterator[Tuple[str, NanotronParameter]]):
-        ...
+    def __init__(self, named_parameters: Iterator[Tuple[str, NanotronParameter]]): ...
 
     @abstractmethod
-    def backward(self, loss: torch.Tensor):
-        ...
+    def backward(self, loss: torch.Tensor): ...
 
     @abstractmethod
-    def step(self):
-        ...
+    def step(self): ...
 
     @abstractmethod
-    def sync_gradients_across_dp(self, dp_pg: dist.ProcessGroup, reduce_op: dist.ReduceOp, reduce_scatter: bool):
-        ...
+    def sync_gradients_across_dp(self, dp_pg: dist.ProcessGroup, reduce_op: dist.ReduceOp, reduce_scatter: bool): ...
 
     @abstractmethod
-    def zero_grad(self):
-        ...
+    def zero_grad(self): ...
 
     @abstractmethod
-    def get_parameter_for_optimizer(self, name: str) -> NanotronParameter:
-        ...
+    def get_parameter_for_optimizer(self, name: str) -> NanotronParameter: ...
 
     @abstractmethod
-    def get_grad_buffer(self, name: str) -> torch.Tensor:
-        ...
+    def get_grad_buffer(self, name: str) -> torch.Tensor: ...
 
     @abstractmethod
-    def state_dict(self) -> Dict[str, torch.Tensor]:
-        ...
+    def state_dict(self) -> Dict[str, torch.Tensor]: ...
 
     @abstractmethod
-    def load_state_dict(self, state_dict: torch.Tensor):
-        ...
+    def load_state_dict(self, state_dict: torch.Tensor): ...
 
 
 class FP32GradientAccumulator(GradientAccumulator):
@@ -352,7 +343,6 @@ def get_fp32_accum_hook(
             return fut
 
         if reduce_scatter:
-            raise NotImplementedError("Not implemented")
             assert hasattr(accumulator, "param_name_to_offsets")
             grad_buffer_tensor_list = [
                 accumulator.get_grad_buffer(param_id_to_name[id(param)]).view(-1) for param in bucket.parameters()
@@ -366,7 +356,7 @@ def get_fp32_accum_hook(
                 for grad_buffer, param in zip(grad_buffer_tensor_list, bucket.parameters())
             ]
             input_tensor_lists = [
-                torch.split(grad_buffer, split_size_or_sections=len(grad_buffer) // dp_pg.size())
+                torch.split(grad_buffer, split_size_or_sections=len(grad_buffer) // dp_cp_pg.size())
                 for grad_buffer in grad_buffer_tensor_list
             ]
             dist.reduce_scatter_coalesced(
