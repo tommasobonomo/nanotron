@@ -8,6 +8,7 @@ To process Jsonl files:
 import argparse
 
 from datatrove.executor.local import LocalPipelineExecutor
+from datatrove.executor.slurm import SlurmPipelineExecutor
 from datatrove.pipeline.readers import HuggingFaceDatasetReader, JsonlReader
 from datatrove.pipeline.tokens import DocumentTokenizer
 
@@ -28,6 +29,14 @@ def get_args():
         default=None,
         help="EOS token to add after each document. Default: None",
     )
+    group = parser.add_argument_group(title="Executor")
+    group.add_argument(
+        "--executor-type",
+        type=str,
+        default="local",
+        choices=["local", "slurm"],
+        help="Executor type to run the preprocessing step. Default: local",
+    )
 
     group = parser.add_argument_group(title="Output data")
     group.add_argument(
@@ -43,6 +52,8 @@ def get_args():
     group.add_argument(
         "--n-tasks", type=int, default=8, help="Total number of tasks to run the preprocessing step. Default: 8"
     )
+    group.add_argument("--name", type=str, default="dataset", help="Name of dataset that is being tokenized")
+
     # Subparsers for processing either Hugging Face datasets or jsonl files
     sp = parser.add_subparsers(
         dest="readers",
@@ -58,6 +69,12 @@ def get_args():
         help="Path to local stored dataset or repository on the Hugging Face hub that can be loaded with datasets.load_dataset",
     )
     p1.add_argument("--column", type=str, default="text", help="Column to preprocess from the Dataset. Default: text")
+    p1.add_argument(
+        "--subset",
+        type=str,
+        default="default",
+        help="Name of config (i.e. subset) of the dataset that should be loaded. Default: default",
+    )
     p1.add_argument("--split", type=str, default="train", help="Which split of the data to process. Default: train")
 
     p2 = sp.add_parser(name="jsonl")
@@ -82,27 +99,47 @@ def main(args):
     if args.readers == "hf":
         datatrove_reader = HuggingFaceDatasetReader(
             dataset=args.dataset,
+            streaming=True,
             text_key=args.column,
-            dataset_options={"split": args.split},
+            dataset_options={"split": args.split, "name": args.subset},
         )
     else:
         datatrove_reader = JsonlReader(data_folder=args.dataset, text_key=args.column, glob_pattern=args.glob_pattern)
 
-    preprocess_executor = LocalPipelineExecutor(
-        pipeline=[
-            datatrove_reader,
-            DocumentTokenizer(
-                output_folder=args.output_folder,
-                tokenizer_name_or_path=args.tokenizer_name_or_path,
-                eos_token=args.eos_token,
-                shuffle_documents=False,
-                max_tokens_per_file=1e9,
-            ),
-        ],
-        tasks=args.n_tasks,
-        logging_dir=args.logging_dir,
-    )
-    preprocess_executor.run()
+    pipeline = [
+        datatrove_reader,
+        DocumentTokenizer(
+            output_folder=args.output_folder,
+            tokenizer_name_or_path=args.tokenizer_name_or_path,
+            eos_token=args.eos_token,
+            shuffle_documents=False,
+            max_tokens_per_file=1e9,
+        ),
+    ]
+
+    if args.executor_type == "slurm":
+        executor = SlurmPipelineExecutor(
+            pipeline=pipeline,
+            tasks=args.n_tasks,
+            time="4:00:00",
+            sbatch_args={"account": "FAIR_NLP"},
+            partition="lrd_all_serial",
+            cpus_per_task=1,
+            mem_per_cpu_gb=7,
+            job_name=f"{args.name}_tokenization",
+            venv_path="/leonardo/home/userexternal/tbonomo0/nanotron/.venv",
+        )
+    elif args.executor == "local":
+        executor = LocalPipelineExecutor(
+            pipeline=pipeline,
+            tasks=args.n_tasks,
+            logging_dir=args.logging_dir,
+            workers=4,
+        )
+    else:
+        raise RuntimeError(f"Unsupported executor {args.executor}")
+
+    executor.run()
 
 
 if __name__ == "__main__":
