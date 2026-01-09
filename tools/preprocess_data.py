@@ -37,6 +37,7 @@ def get_args():
         choices=["local", "slurm"],
         help="Executor type to run the preprocessing step. Default: local",
     )
+    group.add_argument("--mem-per-cpu", type=int, default="7", help="Max RAM available for each CPU core")
 
     group = parser.add_argument_group(title="Output data")
     group.add_argument(
@@ -100,6 +101,7 @@ def main(args):
         datatrove_reader = HuggingFaceDatasetReader(
             dataset=args.dataset,
             streaming=True,
+            batch_size=100,
             text_key=args.column,
             dataset_options={"split": args.split, "name": args.subset},
         )
@@ -125,11 +127,11 @@ def main(args):
             sbatch_args={"account": "FAIR_NLP"},
             partition="lrd_all_serial",
             cpus_per_task=1,
-            mem_per_cpu_gb=7,
+            mem_per_cpu_gb=args.mem_per_cpu,
             job_name=f"{args.name}_tokenization",
             venv_path="/leonardo/home/userexternal/tbonomo0/nanotron/.venv",
         )
-    elif args.executor == "local":
+    elif args.executor_type == "local":
         executor = LocalPipelineExecutor(
             pipeline=pipeline,
             tasks=args.n_tasks,

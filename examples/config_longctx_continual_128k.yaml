@@ -1,22 +1,48 @@
 checkpoints:
-  checkpoint_interval: 10
+  checkpoint_interval: 500
   checkpoints_path: /leonardo_scratch/large/userexternal/tbonomo0/longctx_checkpoints
-  checkpoints_path_is_shared_file_system: false
-  load_lr_scheduler: false
-  load_optimizer: false
-  resume_checkpoint_path: /leonardo_scratch/fast/FAIR_NLP/minerva/nanotron_models/minerva-7B-base-recipe2-nt
+  checkpoints_path_is_shared_file_system: true
+  load_lr_scheduler: true
+  load_optimizer: true
+  resume_checkpoint_path: /leonardo_scratch/large/userexternal/tbonomo0/longctx_checkpoints/2000
   save_final_state: true
   save_initial_state: false
 data_stages:
 - data:
     dataset:
       dataset_folder:
-      - /leonardo_scratch/large/userexternal/tbonomo0/itagutenberg
+      - /leonardo_work/FAIR_NLP/tbonomo0/minerva/data_continual/tkn/cpt/it/testimole-books # 0.26 B
+      - /leonardo_work/FAIR_NLP/tbonomo0/minerva/data_continual/tkn/cpt/it/itagutenberg # 0.13 B
+      - /leonardo_work/FAIR_NLP/tbonomo0/minerva/data_continual/tkn/cpt/it/redpajamav2/2023-14 # 3.48 B
+      - /leonardo_work/FAIR_NLP/tbonomo0/minerva/data_continual/tkn/cpt/en/fineweb # 4.35 B
+      - /leonardo_work/FAIR_NLP/tbonomo0/minerva/data_continual/tkn/cpt/en/the_stack # 2.54 B
+      - /leonardo_work/FAIR_NLP/tbonomo0/minerva/data_continual/tkn/cpt/en/wikipedia # 7.12 B
+      - /leonardo_work/FAIR_NLP/tbonomo0/minerva/data_continual/tkn/cpt/it/wikipedia # 1.23 B
+      - /leonardo_work/FAIR_NLP/tbonomo0/minerva/data_continual/tkn/cpt/en/dolmino_math # 0.62 B
+      - /leonardo_work/FAIR_NLP/tbonomo0/minerva/data_continual/tkn/cpt/en/dolmino_stackexchange # 1.51 B
+      - /leonardo_work/FAIR_NLP/tbonomo0/minerva/data_continual/tkn/cpt/it/gazzetta # 1.71 B
+      - /leonardo_work/FAIR_NLP/tbonomo0/minerva/data_continual/tkn/cpt/en/flan_filtered # 13.45 B
+      - /leonardo_work/FAIR_NLP/tbonomo0/minerva/data_continual/tkn/cpt/en/project_gutenberg # 6.36 B
+      - /leonardo_work/FAIR_NLP/tbonomo0/minerva/data_continual/tkn/cpt/it/finepdfs # 7.28 B
+      - /leonardo_work/FAIR_NLP/tbonomo0/minerva/data_continual/tkn/cpt/en/finepdfs # 19.12 B
       dataset_max_tokens: null
       dataset_read_path: null
-      dataset_weights:
-      - 1
-      pad_samples_to_global_batch_size: false
+      dataset_weights: # proportional to size
+      - 0.52 # testimole-books 0.26 B x2 
+      - 0.26 # itagutenberg 0.13 B x2 
+      - 3.48 # redpajamav2/2023-14 3.48 B
+      - 4.35 # fineweb EN 4.35 B
+      - 2.54 # the_stack 2.54 B
+      - 7.12 # wikipedia EN 7.12 B
+      - 2.46 # wikipedia IT 1.23 B x2
+      - 0.62 # dolmino_math 0.62 B
+      - 1.51 # dolmino_stackexchange 1.51 B
+      - 1.71 # gazzetta 1.71 B
+      - 13.45 # flan_filtered 13.45 B
+      - 6.36 # project_gutenberg EN 6.36 B
+      - 14.56 # finepdfs IT 7.28 B x2
+      - 10 # finepdfs EN 19.12 B scaled down
+      pad_samples_to_global_batch_size: true # Avoid issues with DDP at last step
       return_positions: true
       shuffle_files: true
       skip_in_stream: false
@@ -53,6 +79,7 @@ model:
   model_config:
     _attn_implementation: llama3_ring_attention
     ring_attn_heads_k_stride: 1
+    _use_doc_masking: true
     attention_bias: false
     bos_token_id: 1
     eos_token_id: 2
@@ -79,13 +106,13 @@ optimizer:
   accumulate_grad_in_fp32: true
   clip_grad: 1.0
   learning_rate_scheduler:
-    learning_rate: 0.0003
-    lr_decay_starting_step: null
-    lr_decay_steps: 13
-    lr_decay_style: cosine
-    lr_warmup_steps: 2
+    learning_rate: 0.0002
+    lr_decay_starting_step: 300
+    lr_decay_steps: 16435
+    lr_decay_style: linear
+    lr_warmup_steps: 300
     lr_warmup_style: linear
-    min_decay_lr: 1.0e-05
+    min_decay_lr: 0
   optimizer_factory:
     adam_beta1: 0.9
     adam_beta2: 0.95
@@ -96,8 +123,8 @@ optimizer:
   weight_decay_exclude_named_params: []
   zero_stage: 0
 parallelism:
-  context_parallel_size: 8
-  dp: 2
+  context_parallel_size: 4
+  dp: 16
   expert_parallel_size: 1
   pp: 1
   pp_engine: 1f1b
@@ -113,10 +140,10 @@ tokenizer:
   tokenizer_name_or_path: /leonardo_scratch/large/userexternal/tbonomo0/models/sapienzanlp--Minerva-7B-base-recipe2
   tokenizer_revision: null
 tokens:
-  batch_accumulation_per_replica: 1
+  batch_accumulation_per_replica: 2
   limit_test_batches: 0
   limit_val_batches: 0
   micro_batch_size: 1
   sequence_length: 131072 # 65536
-  train_steps: 15
+  train_steps: 16435
   val_check_interval: -1

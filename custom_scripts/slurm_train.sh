@@ -5,13 +5,14 @@
 
 #SBATCH --account=FAIR_NLP
 #SBATCH --partition=boost_usr_prod
-#SBATCH --nodes=16
-#SBATCH --ntasks=16
+#SBATCH --nodes=64
+#SBATCH --ntasks=64
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:4
 #SBATCH --exclusive
 #SBATCH --exclude=lrdn[2000-3450]
+#SBATCH --time=24:00:00
 
 
 module purge
