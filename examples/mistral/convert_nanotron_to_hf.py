@@ -140,7 +140,9 @@ def convert_checkpoint_and_save(
 
     # Copy weights, initialize tokenizer and save model.
     if tokenizer_name is not None:
-        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+        tokenizer = AutoTokenizer.from_pretrained(
+            tokenizer_name, model_max_length=model_config_hf.max_position_embeddings
+        )
         tokenizer.save_pretrained(save_path)
     convert_nt_to_hf(nanotron_model, hf_model, model_config)
     hf_model.save_pretrained(save_path)

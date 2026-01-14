@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=minerva-convert-hf-to-nt        # Job name
+#SBATCH --job-name=minerva-convert-nt-to-hf        # Job name
 #SBATCH --output=/leonardo/home/userexternal/tbonomo0/nanotron/logs/misc/%x-%j.out         # Name of stdout output file
 #SBATCH --error=/leonardo/home/userexternal/tbonomo0/nanotron/logs/misc/%x-%j.err          # Name of stderr error file
 
