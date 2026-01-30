@@ -5,8 +5,9 @@
 
 #SBATCH --account=FAIR_NLP
 #SBATCH --partition=boost_usr_prod
-#SBATCH --nodes=64
-#SBATCH --ntasks=64
+#SBATCH --qos=qos_llm_prod
+#SBATCH --nodes=32
+#SBATCH --ntasks=32
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:4

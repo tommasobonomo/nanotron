@@ -21,8 +21,8 @@ module load python/3.11.7
 
 source /leonardo/home/userexternal/tbonomo0/nanotron/.venv/bin/activate
 
-export NT_MODEL_PATH=/leonardo_scratch/large/userexternal/tbonomo0/longctx_checkpoints/15
-export HF_MODEL_PATH=/leonardo_scratch/large/userexternal/tbonomo0/models/minerva-7B-base-recipe2-longctx
+export NT_MODEL_PATH=/leonardo_scratch/large/userexternal/tbonomo0/longctx_checkpoints/quick_warmup_run_20260107/7000
+export HF_MODEL_PATH=/leonardo_scratch/large/userexternal/tbonomo0/__shared/minerva-7B-base-longctx-128k-step7000
 export TOKENIZER_PATH=/leonardo_scratch/large/userexternal/tbonomo0/models/sapienzanlp--Minerva-7B-base-recipe2/
 export MODULE_PATH=examples.mistral.convert_nanotron_to_hf
 

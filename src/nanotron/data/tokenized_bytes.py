@@ -450,6 +450,11 @@ class TokenizedBytesFolderDataset(DatatroveFolderDataset):
             files_order=[str(f.file_path) for f in self.files],
         )
 
+    def __getitem__(self, item):
+        """Override to add epoch wrapping for small datasets that get oversampled"""
+        epoch_item = item % len(self)
+        return super().__getitem__(epoch_item)
+
 
 def build_dataset(
     dataset_folder: str,
