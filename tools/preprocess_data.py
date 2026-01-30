@@ -3,6 +3,9 @@ To process HuggingFace Datasets:
     python3 tools/preprocess_data.py --tokenizer-name-or-path meta-llama/Meta-Llama-3-8B --output-folder datasets/emotion --n-tasks 16 hf --dataset dair-ai/emotion
 To process Jsonl files:
     python3 tools/preprocess_data.py --tokenizer-name-or-path meta-llama/Meta-Llama-3-8B --output-folder datasets/c4-es --n-tasks 16 jsonl --dataset raw_datasets/c4-es-json-files
+
+For long documents (to avoid OOM):
+    python3 tools/preprocess_data.py --tokenizer-name-or-path meta-llama/Meta-Llama-3-8B --output-folder datasets/long-docs --n-tasks 16 --workers 1 --batch-size 100 --max-tokens-per-file 100000000 jsonl --dataset raw_datasets/long-docs
 """
 
 import argparse
@@ -38,11 +41,32 @@ def get_args():
         help="Executor type to run the preprocessing step. Default: local",
     )
     group.add_argument("--mem-per-cpu", type=int, default="7", help="Max RAM available for each CPU core")
+    group.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Number of parallel workers for local executor. Use 1 for long documents to reduce memory. Default: 1",
+    )
 
     group = parser.add_argument_group(title="Output data")
     group.add_argument(
         "--output-folder", type=str, required=True, help="Path to the output folder to store the tokenized documents"
     )
+
+    group = parser.add_argument_group(title="Tokenization configs")
+    group.add_argument(
+        "--batch-size",
+        type=int,
+        default=1000,
+        help="Batch size for tokenization. Use smaller values (100-500) for long documents to reduce memory. Default: 1000",
+    )
+    group.add_argument(
+        "--max-tokens-per-file",
+        type=int,
+        default=100_000_000,
+        help="Max tokens per output file. Smaller values reduce memory usage. Default: 100000000 (100M)",
+    )
+
     group = parser.add_argument_group(title="Miscellaneous configs")
     group.add_argument(
         "--logging-dir",
@@ -115,7 +139,8 @@ def main(args):
             tokenizer_name_or_path=args.tokenizer_name_or_path,
             eos_token=args.eos_token,
             shuffle_documents=False,
-            max_tokens_per_file=1e9,
+            max_tokens_per_file=args.max_tokens_per_file,
+            batch_size=args.batch_size,
         ),
     ]
 
@@ -136,7 +161,7 @@ def main(args):
             pipeline=pipeline,
             tasks=args.n_tasks,
             logging_dir=args.logging_dir,
-            workers=4,
+            workers=args.workers,
         )
     else:
         raise RuntimeError(f"Unsupported executor {args.executor}")
