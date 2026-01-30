@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 
 from datasets import IterableDataset, config, load_dataset
+from tqdm import tqdm
 
 
 def parse_arguments():
@@ -37,7 +38,7 @@ def main():
 
     # Save each shard to a separate JSONL file
     num_shards = iterable_dataset.num_shards
-    for i in range(num_shards):
+    for i in tqdm(range(num_shards), desc="Saving shards", total=num_shards, unit="shard"):
         dataset = iterable_dataset.shard(num_shards=num_shards, index=i)
         output_file = args.output_dir / f"{args.subset}_{args.split}_shard{i}.jsonl"
         dataset.to_json(output_file)
